@@ -1,4 +1,4 @@
-from hdfs.client import Client, InsecureClient
+from hdfs.client import InsecureClient
 
 
 def read_hdfs_file(client, filename):
@@ -102,20 +102,95 @@ def list(client, hdfs_path):
 
 if __name__ == '__main__':
     # 常量定义
-    HDFS_CLIENT_URI = 'http://172.16.7.59:9870'
-    HDFS_DEFAULT_USER = 'flink'
+    HDFS_CLIENT_URI = 'http://172.16.7.58:9870'
+    HDFS_DEFAULT_USER = 'root'
 
     # 路径定义
     local_path = '/test.properties'
-    hdfs_path = '/user/flink'
+    hdfs_path = '/user/flink/config.properties'
+
+    properties_json = {
+        "config": {
+            "source": [
+                {
+                    "with": {
+                        "connector": "kafka",
+                        "topic": "instagram",
+                        "bootstrap.servers": "172.16.7.10:9092,172.16.7.11:9092,172.16.7.12:9092",
+                        "group.id": "flink_facebook_data_quality",
+                        "format": "json"
+                    },
+                    "id": "nodeA",
+                    "table_name": "instagram",
+                    "schema": "checkLocation string, message string, type string"
+                }
+            ],
+            "process": [
+                {
+                    "id": "nodeB",
+                    "sql": "slect xx",
+                    "table_name": "aaa"
+                },
+                {
+                    "id": "nodeB1",
+                    "sql": "slect xx",
+                    "table_name": "bbb"
+                },
+                {
+                    "id": "nodeB2",
+                    "sql": "slect xx",
+                    "table_name": "ccc"
+                }
+            ],
+            "sink": [
+                {
+                    "with": {
+                        "format": "json",
+                        "connector": "elasticsearch-7",
+                        "hosts": "http://172.16.7.52:19200",
+                        "index": "lzy_test"
+                    },
+                    "id": "nodeC",
+                    "table_name": "myUserTable",
+                    "schema": "message string"
+                }
+            ],
+            "lines": {
+                "seq": [
+                    [
+                        "nodeA",
+                        "nodeB"
+                    ],
+                    [
+                        "nodeB",
+                        "nodeB1"
+                    ],
+                    [
+                        "nodeB",
+                        "nodeB2"
+                    ],
+                    [
+                        "nodeB1",
+                        "nodeC"
+                    ],
+                    [
+                        "nodeB2",
+                        "nodeC"
+                    ]
+                ]
+            },
+            "parallelism": 2
+        },
+        "parallelism": 2
+    }
 
     # The address and the base port where the dfs namenode web ui will listen on.
     # client = Client("http://172.16.7.59:9870",root='/user/flink')
     client = InsecureClient(HDFS_CLIENT_URI, user=HDFS_DEFAULT_USER)
 
     # 1.显示目录下的所有文件
-    list_dir = list(client, hdfs_path)
-    print(list_dir)
+    # list_dir = list(client, hdfs_path)
+    # print(list_dir)
 
     # 2.创建目录
     # mkdirs(client,'/input/python')
@@ -130,7 +205,11 @@ if __name__ == '__main__':
     # append_to_hdfs(client,'/input/emp.csv','我爱你'+'\n')
 
     # 6.覆盖写文件
-    # write_to_hdfs(client, '/emp.csv', "sadfafdadsf")
+    import json
+    write_to_hdfs(client, hdfs_path, "")
+    for key in properties_json.keys():
+        print(json.dumps(json.dumps(properties_json[key]), indent=4, ensure_ascii=False)[1:-1])
+        append_to_hdfs(client, hdfs_path, key + "=" + json.dumps(json.dumps(properties_json[key]), indent=4, ensure_ascii=False)[1:-1] + "\n")
 
     # 7.移动文件或重命名
     # move_or_rename(client,'/input/2.csv', '/input/emp.csv')
